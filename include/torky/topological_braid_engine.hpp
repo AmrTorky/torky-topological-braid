@@ -3,32 +3,29 @@
 
 #include <cmath>
 #include <cstdint>
-#include <algorithm>
 
 namespace torky::topological::braid {
-    inline constexpr double EPSILON_NM2       = 0.016;
-    inline constexpr double V_FINITE_ZERO_EV  = 11.384;
-    inline constexpr double GOLDEN_RATIO      = 1.618033988749895;
-
     #pragma pack(push, 1)
     struct TorkyCellDtype {
-        uint8_t  gov_gate;     // TSG Gate Register (0x01 - 0x04)
-        int16_t  phase_q16;    // Phase Q16 Fixed-Point
-        int16_t  field_q16;    // Field Q16 Fixed-Point
-        uint32_t syndrome_u32; // SHA-256 Merkle Syndrome
+        uint64_t anyon_state;
+        uint8_t tsg_gate_register; // 0x01 PROCEED, 0x02 HOLD, 0x03 DENY, 0x04 ESCALATE
     };
     #pragma pack(pop)
 
-    static_assert(sizeof(TorkyCellDtype) == 9, "CRITICAL: TorkyCellDtype must be precisely 9 bytes!");
+    static_assert(sizeof(TorkyCellDtype) == 9, "TorkyCellDtype must be exactly 9 bytes!");
 
     class TopologicalBraidEngine {
     public:
-        // Fault-tolerant Non-Abelian Fibonacci Anyon braiding matrix calculation
-        static inline double evaluate_anyon_braid(double phase_angle) {
-            return std::sin(phase_angle * GOLDEN_RATIO) / std::sqrt((phase_angle * phase_angle) + EPSILON_NM2);
+        static double apply_yang_baxter_gate(double phase) {
+            double val = std::sin(phase) * std::cos(phase);
+            return std::isfinite(val) ? val : 0.0;
         }
-        static inline double evaluate_v_finite(double r_nm) {
-            return 1.0 / std::sqrt((r_nm * r_nm) + EPSILON_NM2);
+
+        static TorkyCellDtype execute_braid_step(TorkyCellDtype cell, double phase) {
+            cell.tsg_gate_register = 0x01; // PROCEED
+            double r = apply_yang_baxter_gate(phase);
+            cell.anyon_state ^= static_cast<uint64_t>(r * 1000000.0);
+            return cell;
         }
     };
 }
